@@ -1,4 +1,4 @@
-TITLE ASM1 (EXE)
+CAPSTONE (EXE)
 ;-------------------------------------------------------------------------------------------
 STACKSEG SEGMENT PARA 'Stack'
   DW 32 DUP ('E')
@@ -7,10 +7,9 @@ STACKSEG ENDS
 DATASEG SEGMENT PARA 'Data'
   MESSAGE DB ?
   MENUFILE      DB 'menu.txt', 00H
-  HOWFILE       DB 'how.txt', 00H
-  EXITFILE      DB 'exit.txt', 00H
   LOADING       DB 'loading.txt', 00H
   DONE_LOADING  DB 'doneload.txt', 00H
+  HOW_TO        DB 'how.txt', 00H
 
   NEW_INPUT     DB ?
   FLAG          DW 01H,'$'
@@ -18,12 +17,13 @@ DATASEG SEGMENT PARA 'Data'
   STAT          DB 1
 
   FILEHANDLE    DW ?
+  HERE          DB ">>$"
+  BLANK         DB "  $"
 
   RECORD_STR    DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_LOAD    DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_M    DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_H    DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_E    DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_LOAD   DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_M      DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_H      DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
 
 
   ERROR1_STR    DB 'Error in opening file.$'
@@ -61,7 +61,7 @@ MAIN PROC FAR
   LOOP_FOR_ENTER:
 
     CALL _GET_KEY
-    CMP NEW_INPUT, 13 ;FIX THISSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS ENTER
+    CMP NEW_INPUT, 13 ;
     JE MENU_START
     CMP NEW_INPUT, 48H
     JE MENU_START
@@ -69,15 +69,17 @@ MAIN PROC FAR
 
 MENU_START:
 
-  MOV   BH, 07H           
-  MOV   CX, 0000H         ;from top, leftmost
-  MOV   DX, 184FH         ;to bottom, rightmost
-  CALL  _CLEAR_SCREEN     ;clear screen
+  ;MOV   BH, 07H           
+  ;MOV   CX, 0000H         ;from top, leftmost
+  ;MOV   DX, 184FH         ;to bottom, rightmost
+  ;CALL  _CLEAR_SCREEN     ;clear screen
 
   MOV FLAG, 03H
   CALL _FILE_READ
   MOV NEW_INPUT, 04BH
   CALL _NAVIGATION
+  CALL _DETERMINE_MENU
+
 
 EXIT_:
   MOV   AH, 4CH         ;force exit
@@ -87,12 +89,27 @@ MAIN ENDP
 
 ;-------------------------------------------------------------------------------------------
 
+_DETERMINE_MENU PROC NEAR
+
+  CMP STAT, 2
+  JE PLAY_HOW
+
+PLAY_HOW: 
+
+  MOV FLAG, 04H
+  ;CALL _CLEAR_SCREEN
+  CALL _FILE_READ
+
+_DETERMINE_MENU ENDP
+
+;-------------------------------------------------------------------------------------------
+
 _NAVIGATION PROC NEAR
 
 LOOP_NAVIGATE:
 
   CALL _GET_KEY
-  CMP NEW_INPUT, 00H
+  CMP NEW_INPUT, 50H
   JE LOOP_NAVIGATE
   CMP NEW_INPUT, 4BH
   JE MOVELEFT
@@ -101,9 +118,9 @@ LOOP_NAVIGATE:
   CMP NEW_INPUT, 48H
   JE GOODBYE
 
-  MOV NEW_INPUT, 00H
+  MOV NEW_INPUT, 50H
   JMP LOOP_NAVIGATE
-  MOV NEW_INPUT, 00H
+  MOV NEW_INPUT, 50H
 
 MOVELEFT:
   CMP STAT, 1
@@ -145,6 +162,28 @@ SUBONE:
   JMP EVALUATE
 
 EVALUATE:
+
+  MOV DH, 22 ;y
+  MOV DL, 30 ;x
+  CALL _SET_CURSOR
+  LEA DX, BLANK
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 22 ;y
+  MOV DL, 56 ;x
+  CALL _SET_CURSOR
+  LEA DX, BLANK
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 22 ;y
+  MOV DL, 10 ;x
+  CALL _SET_CURSOR
+  LEA DX, BLANK
+  MOV AH, 9
+  INT 21H
+
   CMP STAT, 1
   JE MENU_
   CMP STAT, 2
@@ -154,19 +193,37 @@ EVALUATE:
   JMP LOOP_NAVIGATE
 
 MENU_:
-  MOV FLAG, 03H
+
+  MOV DH, 22 ;y
+  MOV DL, 10 ;x
+  CALL _SET_CURSOR
+  LEA DX, HERE
+  MOV AH, 9
+  INT 21H
+
   JMP READ
 
 HOW_:
-  MOV FLAG, 04H
+  MOV DH, 22 ;y
+  MOV DL, 30 ;x
+  CALL _SET_CURSOR
+  LEA DX, HERE
+  MOV AH, 9
+  INT 21H
+
   JMP READ
 
 EXIT_2:
-  MOV FLAG, 05H
+  MOV DH, 22 ;y
+  MOV DL, 56 ;x
+  CALL _SET_CURSOR
+  LEA DX, HERE
+  MOV AH, 9
+  INT 21H
   JMP READ
 
-READ:
-  CALL _FILE_READ
+ READ: 
+  MOV NEW_INPUT, 00H
   JMP LOOP_NAVIGATE
 
 BYEEE:
@@ -371,9 +428,6 @@ _FILE_READ PROC NEAR
   CMP FLAG, 04H
   JE DISPLAY_HOW
 
-  CMP FLAG, 05H
-  JE DISPLAY_EXIT
-
 DISPLAY_LOADING:
   LEA DX, LOADING
   JMP CONTINUE_AF
@@ -387,11 +441,7 @@ DISPLAY_MENU:
   JMP CONTINUE_AF
 
 DISPLAY_HOW:
-  LEA DX, HOWFILE
-  JMP CONTINUE_AF
-
-DISPLAY_EXIT:
-  LEA DX, EXITFILE
+  LEA DX, HOW_TO
   JMP CONTINUE_AF
 
 CONTINUE_AF:
@@ -410,13 +460,10 @@ CONTINUE_AF:
 
   CMP FLAG, 03H
   JE RECORD_MENU
-
+  
   CMP FLAG, 04H
   JE RECORD_HOW
 
-  CMP FLAG, 05H
-  JE RECORD_EXIT
-  
 RECORD_THISSTR:
 
   LEA DX, RECORD_STR    
@@ -446,14 +493,6 @@ RECORD_HOW:
   LEA DX, RECORD_H    
   INT 21H
   LEA SI, RECORD_H
-
-  JMP DONE_RECORD
-
-RECORD_EXIT:
-
-  LEA DX, RECORD_M    
-  INT 21H
-  LEA SI, RECORD_M
 
   JMP DONE_RECORD
 

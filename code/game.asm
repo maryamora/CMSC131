@@ -1,4 +1,4 @@
-CAPSTONE (EXE)
+TITLE CAPSTONE (EXE)
 ;-------------------------------------------------------------------------------------------
 STACKSEG SEGMENT PARA 'Stack'
   DW 32 DUP ('E')
@@ -20,10 +20,10 @@ DATASEG SEGMENT PARA 'Data'
   HERE          DB ">>$"
   BLANK         DB "  $"
 
-  RECORD_STR    DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_LOAD   DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_M      DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_H      DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_STR    DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_LOAD   DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_M      DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_H      DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
 
 
   ERROR1_STR    DB 'Error in opening file.$'
@@ -69,10 +69,10 @@ MAIN PROC FAR
 
 MENU_START:
 
-  ;MOV   BH, 07H           
-  ;MOV   CX, 0000H         ;from top, leftmost
-  ;MOV   DX, 184FH         ;to bottom, rightmost
-  ;CALL  _CLEAR_SCREEN     ;clear screen
+  MOV   BH, 07H           
+  MOV   CX, 0000H         ;from top, leftmost
+  MOV   DX, 184FH         ;to bottom, rightmost
+  CALL  _CLEAR_SCREEN     ;clear screen
 
   MOV FLAG, 03H
   CALL _FILE_READ
@@ -93,12 +93,15 @@ _DETERMINE_MENU PROC NEAR
 
   CMP STAT, 2
   JE PLAY_HOW
+  JNE BYE2
 
 PLAY_HOW: 
 
   MOV FLAG, 04H
-  ;CALL _CLEAR_SCREEN
+  CALL _CLEAR_SCREEN
   CALL _FILE_READ
+
+BYE2:
 
 _DETERMINE_MENU ENDP
 
@@ -450,7 +453,7 @@ CONTINUE_AF:
 
   MOV AH, 3FH           
   MOV BX, FILEHANDLE   
-  MOV CX, 7500          
+  MOV CX, 9000          
   
   CMP FLAG, 01H
   JE RECORD_THISSTR

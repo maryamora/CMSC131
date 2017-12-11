@@ -50,3 +50,16 @@ You are in a TriWizard Tournament which is a magical contest joined by three sch
 - If hit by the enemy's spell, you are stunned for a while.
 - **Whoever reaches the trophy first, wins.**
 
+## THE GAME
+
+Loading Scene
+
+![alt text](https://github.com/maryamora/CMSC131/blob/master/files/loading.png)
+
+Load Over
+
+![alt text](https://github.com/maryamora/CMSC131/blob/master/files/loadcomplete.png)
+
+Main Menu
+
+![alt text](https://github.com/maryamora/CMSC131/blob/master/files/menu.png)

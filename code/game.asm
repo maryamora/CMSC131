@@ -9,23 +9,30 @@ DATASEG SEGMENT PARA 'Data'
   MENUFILE      DB 'menu.txt', 00H
   LOADING       DB 'loading.txt', 00H
   DONE_LOADING  DB 'doneload.txt', 00H
-  HOW_TO        DB 'how.txt', 00H
+  HOW_TO        DB 'hs.txt', 00H
   MAZE_1        DB 'maze1.txt', 00H
+
+  HARRY         DB 2BH,'$'
+  ENEMY         DB 7CH, '$'
 
   NEW_INPUT     DB ?
   FLAG          DW 01H,'$'
 
   STAT          DB 1
+  HARRY_X       DB 77
+  HARRY_Y       DB 03
+  ENEMY_X       DB 77
+  ENEMY_Y       DB 23
 
   FILEHANDLE    DW ?
   HERE          DB ">>$"
   BLANK         DB "  $"
 
-  RECORD_STR    DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_LOAD   DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_M      DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_H      DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_MAZE1  DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_STR    DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_LOAD   DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_M      DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_H      DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_MAZE1  DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
 
   ERROR1_STR    DB 'Error in opening file.$'
   ERROR2_STR    DB 'Error reading from file.$'
@@ -81,6 +88,12 @@ MENU_START:
   CALL _NAVIGATION
   CALL _DETERMINE_MENU
 
+  CMP STAT, 1
+  JE START_GAME
+  JNE EXIT_
+
+  START_GAME:
+    CALL _PLAY_NOW
 
 EXIT_:
   MOV   AH, 4CH         ;force exit
@@ -91,8 +104,106 @@ MAIN ENDP
 ;-------------------------------------------------------------------------------------------
 _PLAY_NOW PROC NEAR
 
+  MOV NEW_INPUT, 00H
+  MOV DH, 03 ;y
+  MOV DL, 77 ;x
+  
+  CALL _SET_CURSOR
+  
+  LEA DX, HARRY
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 23 ;y
+  MOV DL, 77 ;x
+  
+  CALL _SET_CURSOR
+  
+  LEA DX, ENEMY
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 50 ;y
+  MOV DL, 77 ;x
+  
+  CALL _SET_CURSOR
+LOOP_THROUGH_MAZE:
+
+  CALL _GET_KEY
+  CMP NEW_INPUT, 48H ;up
+  JE DO_WHAT
+  CMP NEW_INPUT, 50H ;down
+  JE DO_WHAT
+  CMP NEW_INPUT, 4BH ;left
+  JE DO_WHAT
+  CMP NEW_INPUT, 4DH ;right
+  JE DO_WHAT
+  CMP NEW_INPUT, 57H ;w
+  JE DO_WHAT
+  CMP NEW_INPUT, 41H ;a
+  JE DO_WHAT
+  CMP NEW_INPUT, 53H ;s
+  JE DO_WHAT
+  CMP NEW_INPUT, 44H ;d
+  JE DO_WHAT
+  CMP NEW_INPUT, 30H ;0
+  JE LEAVE_THIS_PLACE
+
+  JMP LOOP_THROUGH_MAZE
+
+DO_WHAT:
+  CALL _DO_THIS
+  JMP LOOP_THROUGH_MAZE
+
+LEAVE_THIS_PLACE:
 
 _PLAY_NOW ENDP
+;-------------------------------------------------------------------------------------------
+_DO_THIS PROC NEAR
+
+;harry
+  CMP NEW_INPUT, 4BH
+  JE HARRY_MOVE_LEFT
+
+  CMP NEW_INPUT, 4DH
+  JE HARRY_MOVE_RIGHT
+
+  CMP NEW_INPUT, 48H
+  JE HARRY_MOVE_UP
+
+  CMP NEW_INPUT, 50H
+  JE HARRY_MOVE_DOWN
+
+;enemy
+  CMP NEW_INPUT, 41H
+  JE ENEMY_MOVE_LEFT
+
+  CMP NEW_INPUT, 44H
+  JE ENEMY_MOVE_RIGHT
+
+  CMP NEW_INPUT, 57H
+  JE ENEMY_MOVE_UP
+
+  CMP NEW_INPUT, 53H
+  JE ENEMY_MOVE_DOWN
+
+HARRY_MOVE_LEFT:
+
+HARRY_MOVE_RIGHT:
+
+HARRY_MOVE_UP:
+
+HARRY_MOVE_DOWN:
+
+ENEMY_MOVE_LEFT:
+
+ENEMY_MOVE_RIGHT:
+
+ENEMY_MOVE_UP:
+
+ENEMY_MOVE_DOWN:
+
+_DO_THIS ENDP
 ;-------------------------------------------------------------------------------------------
 
 _DETERMINE_MENU PROC NEAR ;This procedure determines whether the state should be a game state, how to play state, or terminate.
@@ -481,7 +592,7 @@ CONTINUE_AF:
 
   MOV AH, 3FH           
   MOV BX, FILEHANDLE   
-  MOV CX, 9000          
+  MOV CX, 7500          
   
   CMP FLAG, 01H
   JE RECORD_THISSTR

@@ -10,6 +10,7 @@ DATASEG SEGMENT PARA 'Data'
   LOADING       DB 'loading.txt', 00H
   DONE_LOADING  DB 'doneload.txt', 00H
   HOW_TO        DB 'how.txt', 00H
+  MAZE_1        DB 'maze1.txt', 00H
 
   NEW_INPUT     DB ?
   FLAG          DW 01H,'$'
@@ -24,7 +25,7 @@ DATASEG SEGMENT PARA 'Data'
   RECORD_LOAD   DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
   RECORD_M      DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
   RECORD_H      DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
-
+  RECORD_MAZE1  DB 9000 DUP('$')  ;length = original length of record + 1 (for $)
 
   ERROR1_STR    DB 'Error in opening file.$'
   ERROR2_STR    DB 'Error reading from file.$'
@@ -39,7 +40,7 @@ CODESEG SEGMENT PARA 'Code'
 
 START:
 
-MAIN PROC FAR
+MAIN PROC FAR ;This is where the flow of the game lies from START to EXIT.
 
   MOV AX, DATASEG
   MOV DS, AX
@@ -88,16 +89,32 @@ EXIT_:
 MAIN ENDP
 
 ;-------------------------------------------------------------------------------------------
+_PLAY_NOW PROC NEAR
 
-_DETERMINE_MENU PROC NEAR
+
+_PLAY_NOW ENDP
+;-------------------------------------------------------------------------------------------
+
+_DETERMINE_MENU PROC NEAR ;This procedure determines whether the state should be a game state, how to play state, or terminate.
+
+  CMP STAT, 1
+  JE PLAY_PLAY
 
   CMP STAT, 2
   JE PLAY_HOW
-  JNE BYE2
+
+  JMP BYE2
 
 PLAY_HOW: 
 
   MOV FLAG, 04H
+  JMP CHANGE_STATE
+
+PLAY_PLAY:
+  MOV FLAG, 05H
+  JMP CHANGE_STATE
+
+CHANGE_STATE:
   CALL _CLEAR_SCREEN
   CALL _FILE_READ
 
@@ -107,7 +124,7 @@ _DETERMINE_MENU ENDP
 
 ;-------------------------------------------------------------------------------------------
 
-_NAVIGATION PROC NEAR
+_NAVIGATION PROC NEAR ;This procedure figures out where in the menu is the user navigating to.
 
 LOOP_NAVIGATE:
 
@@ -235,7 +252,7 @@ _NAVIGATION ENDP
 
 ;-------------------------------------------------------------------------------------------
 
-_CLEAR_SCREEN PROC  NEAR
+_CLEAR_SCREEN PROC  NEAR ;This clears the screen to view a state.
   MOV   AX, 0600H
   INT   10H
   RET
@@ -243,7 +260,7 @@ _CLEAR_SCREEN ENDP
 
 ;-------------------------------------------------------------------------------------------
 
-_SET_CURSOR PROC  NEAR
+_SET_CURSOR PROC  NEAR ;This sets the cursor at the end of the screen or wherever it should be placed.
       MOV   AH, 02H
       MOV   BH, 00
       INT   10H
@@ -353,7 +370,7 @@ OUTPUT_EXT ENDP
 
 ;-------------------------------------------------------------------------------------------
 
-LOADING_PAGE PROC NEAR
+LOADING_PAGE PROC NEAR ;This calls the state where it loads the game.
 
 ;clear screen
       CALL  _CLEAR_SCREEN
@@ -397,7 +414,7 @@ LOADING_PAGE ENDP
 
 ;-------------------------------------------------------------------------------------------
 
-_GET_KEY  PROC  NEAR
+_GET_KEY  PROC  NEAR ;This procedure helps get the inputs from both players. There are if-else statements within the code regarding the different inputs.
       MOV   AH, 01H   ;check for input
       INT   16H
 
@@ -416,6 +433,10 @@ _GET_KEY  ENDP
 
 _FILE_READ PROC NEAR
 
+;This reads the different stages in our game: the loading state, done loading state, menu state, the mazes which are the game states, the highest score state,
+;list of scores state and game over state.
+
+
   MOV AH, 3DH
   MOV AL, 00  
 
@@ -431,6 +452,9 @@ _FILE_READ PROC NEAR
   CMP FLAG, 04H
   JE DISPLAY_HOW
 
+  CMP FLAG, 05H
+  JE DISPLAY_MAZE
+
 DISPLAY_LOADING:
   LEA DX, LOADING
   JMP CONTINUE_AF
@@ -445,6 +469,10 @@ DISPLAY_MENU:
 
 DISPLAY_HOW:
   LEA DX, HOW_TO
+  JMP CONTINUE_AF
+
+DISPLAY_MAZE:
+  LEA DX, MAZE_1
   JMP CONTINUE_AF
 
 CONTINUE_AF:
@@ -466,6 +494,8 @@ CONTINUE_AF:
   
   CMP FLAG, 04H
   JE RECORD_HOW
+  CMP FLAG, 05H
+  JE RECORD_MAZEONE
 
 RECORD_THISSTR:
 
@@ -499,6 +529,13 @@ RECORD_HOW:
 
   JMP DONE_RECORD
 
+RECORD_MAZEONE:
+  LEA DX, RECORD_MAZE1    
+  INT 21H
+  LEA SI, RECORD_MAZE1
+
+  JMP DONE_RECORD
+
 DONE_RECORD:
   CALL OUTPUT_EXT
   MOV AH, 3EH           
@@ -512,7 +549,7 @@ _FILE_READ ENDP
 
 ;-------------------------------------------------------------------------------------------
 
-_DELAY PROC NEAR
+_DELAY PROC NEAR 
       mov bp, 2 ;lower value faster
       mov si, 2 ;lower value faster
     delay2:

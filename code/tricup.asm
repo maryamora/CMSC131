@@ -34,30 +34,50 @@ DATASEG SEGMENT PARA 'Data'
   TEMP          DB  ?
   LOAD_STR      DB  'L O A D I N G$'
 
-  MOV_X         DB 13H
-  MOV_Y         DB 42H
+  MOV_X         DB 03H
+  MOV_Y         DB 46H
   NEW_ACTION    DB ?, '$'
 
   TEMP_X        DB ?, '$'
   TEMP_Y        DB ?, '$'
 
-  MOV_X2        DB 03H
-  MOV_Y2        DB 46H
+  MOV_X2        DB 13H
+  MOV_Y2        DB 42H
 
   MOV_STATUS    DB ?, '$'
   X             DB ?, '$'
   Y             DB ?, '$'
+  
   ONE_X1        DB ?
   ONE_Y1        DB ?
+  
   TWO_X1        DB ?
   TWO_Y1        DB ?
+  
   SPELL_STATUS1 DB 00H
   SPELL_STATUS2 DB 00H
+  
   SY            DB ?
   SX            DB ?
+
+  TSY           DB ?
+  TSX           DB ?
+  
   PLAYER_POST1  DB 03H
   PLAYER_POST2  DB 03H
-  COORDINATE
+  
+  HIT_FLAG1     DB 00H
+  HIT_FLAG2     DB 00H
+  
+  COUNT1        DB 10
+  COUNT2        DB 10
+  
+  COL_CHECK     DB ?
+  
+  IS_COLLISION  DB 00H
+  INPUT         DB ?
+
+  CALLER_FLAG   DB ?
 
 DATASEG ENDS
 ;-------------------------------------------------------------------------------------------
@@ -83,6 +103,7 @@ MAIN PROC FAR
   CALL _FILE_READ         
   
 __ITERATE:
+
   CALL _CLEAR_SCREEN
 
   MOV DL, MOV_Y
@@ -102,10 +123,6 @@ __ITERATE:
   MOV   AH, 02H
   MOV   DL, AL
   INT   21H
-
-  MOV DL, ONE_Y1
-  MOV DH, ONE_X1
-  CALL _SET_CURSOR
 
   MOV NEW_ACTION, 00H
   CALL _GET_KEY
@@ -141,11 +158,57 @@ __ITERATE:
       CALL UPDATE_PLAYER
       CALL UPDATE_SPELL_P1
       CALL UPDATE_SPELL_P2
+      ;CALL UPDATE_HIT
+      ;MOV HIT_FLAG1, AL
+      ;MOV HIT_FLAG2, AH
 
 JMP __ITERATE
 MAIN ENDP
 ;-------------------------------------------------------------------------------------------
+UPDATE_HIT PROC NEAR
+  MOV AL, COUNT1
+  MOV AH, COUNT2
+  MOV AL, HIT_FLAG1
+  MOV AH, HIT_FLAG2
+  CMP HIT_FLAG1, 01H
+  JE SUB_COUNT
+  JNE CHECK_HIT2
+
+  CHECK_HIT2:
+    CMP HIT_FLAG2, 01H
+    JE SUB_COUNTT
+    JNE SUPER
+
+  SUB_COUNT:  
+    DEC CL
+    MOV COUNT1, CL
+    CMP COUNT1, 00
+    JE SET_FLAG1
+    JNE SUPER
+    SET_FLAG1:
+      MOV AL, 00H
+      MOV CL, 10
+      MOV COUNT1, CL
+      JMP SUPER
+
+  SUB_COUNTT:  
+    DEC CH
+    MOV COUNT2, CH
+    CMP COUNT2, 00
+    JE SET_FLAG2
+    JNE SUPER
+    SET_FLAG2:
+      MOV AH, 00H
+      MOV CH, 10
+      MOV COUNT2, CH
+      JMP SUPER
+SUPER:      
+RET    
+UPDATE_HIT ENDP
+;-------------------------------------------------------------------------------------------
 CAST_SPELL_P1 PROC NEAR
+CMP HIT_FLAG1, 01H
+JE _OUT
   MOV SPELL_STATUS1, 01H
   MOV DH, MOV_X
   MOV DL, MOV_Y
@@ -153,10 +216,13 @@ CAST_SPELL_P1 PROC NEAR
   MOV ONE_Y1, DL
   MOV DH, ONE_X1
   MOV DL, ONE_Y1
+_OUT:  
 RET
 CAST_SPELL_P1 ENDP
 ;-------------------------------------------------------------------------------------------
 CAST_SPELL_P2 PROC NEAR
+CMP HIT_FLAG2, 01H
+JE __OUT
   MOV SPELL_STATUS2, 01H
   MOV DH, MOV_X2
   MOV DL, MOV_Y2
@@ -165,20 +231,81 @@ CAST_SPELL_P2 PROC NEAR
   MOV TWO_Y1, DL
   MOV DH, TWO_X1
   MOV DL, TWO_Y1
+__OUT:  
 RET
 CAST_SPELL_P2 ENDP
 ;-------------------------------------------------------------------------------------------
-UPDATE_SPELL_P1 PROC NEAR
-  CMP SPELL_STATUS1, 01H
-  JE CONTINUE 
-  JNE LEAVE_SD
+COLLISION_UP PROC NEAR
+  MOV SY, DL
+  MOV SX, DH
+  MOV DL, SY
+  MOV DH, SX
+  MOV DH, TSX
+  MOV DL, TSY
 
-CONTINUE:
-  ;MOV ONE_X1, DH
-  ;MOV ONE_Y1, DL
+    DEC TSX
+    MOV DH, TSX
+    CALL _SET_CURSOR
+    CALL _GET_CHAR_AT_CURSOR
+    MOV INPUT, AL
+    MOV DH, SY
+    MOV DL, SX
+
+    CMP INPUT, 32
+    JE UPPING
+    JNE CMP_PLAY2
+
+    CMP_PLAY2:
+      CMP INPUT, 02H
+      JE HIT_ENEMY
+      JNE HIT_OBJECT
+
+    UPPING:
+      CALL _SET_CURSOR
+      CALL _ERASE
+      ;DEC ONE_X1
+      MOV AH, 01H
+      RET
+
+    HIT_ENEMY:
+      CALL _SET_CURSOR
+      CALL _ERASE
+      MOV IS_COLLISION, 01H
+      MOV HIT_FLAG2, 01H
+      MOV SPELL_STATUS1, 00H
+      MOV AH, 00H
+      RET
+
+    HIT_OBJECT:
+      CALL _SET_CURSOR
+      CALL _ERASE
+      MOV SPELL_STATUS1, 00H
+      MOV AH, 00H
+      RET     
+
+RET
+COLLISION_UP ENDP
+;-------------------------------------------------------------------------------------------
+UPDATE_SPELL_P1 PROC NEAR
+  
+  CMP SPELL_STATUS1, 01H
+  JE CHEK_COLLISION 
+  JNE HELPER_LEAVE
+
+CHEK_COLLISION:
   MOV DH, ONE_X1
   MOV DL, ONE_Y1
+  MOV SY, DL
+  MOV SX, DH
 
+  UP_CHECK:
+    CALL COLLISION_UP
+    MOV COL_CHECK, AH
+    CMP COL_CHECK, 00H
+     JE CONTINUE
+     JNE HELPER_LEAVE
+
+CONTINUE:
   CHEK_UP:
     CMP PLAYER_POST1, 00H
     JE SET_UP
@@ -191,15 +318,22 @@ CONTINUE:
   
   CHECK_RIGHT:
     CMP PLAYER_POST1, 02H
-    JE SET_RIGHT
+    JE HELPER_SET_RIGHT
     JNE CHECK_LEFT
 
   CHECK_LEFT:
     CMP PLAYER_POST1, 03H
-    JE SET_LEFT
+    JE HELPER_SET_LEFT
     JMP SET_POST1
-
-  SET_UP:  
+;-------------------------------------------
+HELPER_LEAVE:
+    JMP LEAVING
+HELPER_SET_RIGHT:
+    JMP SET_RIGHT
+HELPER_SET_LEFT:
+    JMP SET_LEFT
+;-------------------------------------------      
+  SET_UP:
     CALL UP_MOVE
     MOV MOV_STATUS, AH
 
@@ -233,7 +367,7 @@ CONTINUE:
       INC ONE_X1
       JMP SET_POST1
     LEAVE_SD:
-      JMP LEAVING
+      JMP LEAVING     
 
   SET_RIGHT:
     CALL RIGHT_MOVE
@@ -352,6 +486,7 @@ CONTINUING:
     LEAVE_SD2:
       RET
 
+
   SET_RIGHT2:
     CALL RIGHT_MOVE
     MOV MOV_STATUS, AH
@@ -401,77 +536,18 @@ CONTINUING:
   RET
 UPDATE_SPELL_P2 ENDP
 ;-------------------------------------------------------------------------------------------
-COLLISION PROC NEAR
-  MOV DH, SX
-  MOV DL, SY
-  MOV SX, DH
-  MOV SY, DL
- CHECKING_up:
-    CMP PLAYER_POST2, 00H
-    JE COL1
-    JNE CHECKING_down
-
-  CHECKING_down:
-    CMP PLAYER_POST2, 01H
-    JE COL2
-    JNE CHECKING_right
-
-  CHECKING_right:
-    CMP PLAYER_POST2, 02H
-    JE COL3
-    JNE CHECKING_left
-
-  CHECKING_left:
-    CMP PLAYER_POST2, 03H  
-    JE COL4
-    RET
-
-    COL1:
-      DEC SX
-      JMP COLL
-    COL2:
-      INC SX
-    COLL:  
-      MOV DH, SX
-      CALL _SET_CURSOR
-      CALL _GET_CHAR_AT_CURSOR
-      MOV NEW_INPUT, AL
-      MOV DH, TWO_X1
-
-      CMP NEW_INPUT, 32
-      JNE COLLIDE
-
-    COL3:
-      INC SY
-      JMP COLL
-    COL4:
-      DEC SY
-    COLL1:  
-      MOV DL, SY
-      CALL _SET_CURSOR
-      CALL _GET_CHAR_AT_CURSOR
-      MOV NEW_INPUT, AL
-      MOV DL, TWO_Y1
-
-      CMP NEW_INPUT, 32
-      JNE COLLIDE  
-
-COLLIDE:
-    MOV SPELL_STATUS2, 00H
-    CALL _SET_CURSOR
-    CALL _ERASE
-    MOV AH, 02H
-
-
-RET
-COLLISION ENDP
-;-------------------------------------------------------------------------------------------
 UPDATE_PLAYER PROC NEAR
   ;MOV NEW_ACTION, 00H
   ;CALL _GET_KEY
 
   CALL _DELAY
 
+PLAYER1:
+  CMP HIT_FLAG1, 01H
+  JE PLAY2
+  JNE PLAY1
+
+PLAY1:
   CMP_DOWN:
     CMP NEW_ACTION, 0073H
     JE HELPER_DOWN  
@@ -492,6 +568,12 @@ UPDATE_PLAYER PROC NEAR
     JE HELPER_RIGHT
     JNE CMP_DOWN2
 
+PLAYER2:
+  CMP HIT_FLAG2, 01H
+  JE OUTA
+  JNE PLAY2    
+
+PLAY2:
   CMP_DOWN2:
     CMP NEW_ACTION, 50H
     JE HELPER_DOWN2
@@ -511,6 +593,8 @@ UPDATE_PLAYER PROC NEAR
     CMP NEW_ACTION, 4DH
     JE HELPER_RIGHT2
     RET
+OUTA:
+  RET
 ;-------------------------------------------
 HELPER_DOWN:
     JMP DOWN
@@ -874,7 +958,7 @@ UP_MOVE PROC NEAR
     DEC_UP:
       MOV MOV_STATUS, 01H
       RET
-    INC_UP:  
+    INC_UP: 
       CALL _SET_CURSOR
       CALL _ERASE
       MOV MOV_STATUS, 02H

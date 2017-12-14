@@ -9,7 +9,7 @@ DATASEG SEGMENT PARA 'Data'
   MENUFILE      DB 'menu.txt', 00H
   LOADING       DB 'loading.txt', 00H
   DONE_LOADING  DB 'doneload.txt', 00H
-  HOW_TO        DB 'hs.txt', 00H
+  HOW_TO        DB 'how.txt', 00H
   MAZE_1        DB 'maze1.txt', 00H
 
   HARRY         DB 2BH,'$'
@@ -101,12 +101,12 @@ MAIN PROC FAR ;This is where the flow of the game lies from START to EXIT.
     JMP LOOP_FOR_ENTER
 
 MENU_START:
+  MOV STAT, 1H
 
   MOV   BH, 07H           
   MOV   CX, 0000H         ;from top, leftmost
   MOV   DX, 184FH         ;to bottom, rightmost
   CALL  _CLEAR_SCREEN     ;clear screen
-
   MOV FLAG, 03H
   CALL _FILE_READ
   MOV NEW_INPUT, 04BH
@@ -115,10 +115,22 @@ MENU_START:
 
   CMP STAT, 1
   JE START_GAME
-  JNE EXIT_
+  CMP STAT, 0
+  JE MENU_START
+  CMP STAT, 3
+  JE EXIT_
+  JMP EXIT_
 
   START_GAME:
-    
+    CALL _PLAY_NOW
+
+EXIT_:
+  MOV   AH, 4CH         ;force exit
+  INT   21H
+
+;-------------------------------------------------------------------------------------------
+_PLAY_NOW PROC NEAR
+
 __ITERATE:
   CALL _CLEAR_SCREEN
 
@@ -180,14 +192,7 @@ __ITERATE:
       CALL UPDATE_SPELL_P2
 
 JMP __ITERATE
-
-EXIT_:
-  MOV   AH, 4CH         ;force exit
-  INT   21H
-
-
-;-------------------------------------------------------------------------------------------
-
+_PLAY_NOW ENDP
 
 ;-------------------------------------------------------------------------------------------
 CAST_SPELL_P1 PROC NEAR
@@ -984,13 +989,16 @@ _DO_THIS ENDP
 
 _DETERMINE_MENU PROC NEAR ;This procedure determines whether the state should be a game state, how to play state, or terminate.
 
+DETERMINE_THIS:
+
   CMP STAT, 1
   JE PLAY_PLAY
 
   CMP STAT, 2
   JE PLAY_HOW
 
-  JMP BYE2
+  CMP STAT, 3
+  JE BYE2
 
 PLAY_HOW: 
 
@@ -1004,8 +1012,27 @@ PLAY_PLAY:
 CHANGE_STATE:
   CALL _CLEAR_SCREEN
   CALL _FILE_READ
+  MOV NEW_INPUT, 00H
+
+  CMP STAT, 2
+  JE WHAT_NEXT
+  JMP BYE2
+
+WHAT_NEXT:
+  CALL _GET_KEY
+  CMP NEW_INPUT, 4BH
+  JE CHANGESTAT
+  CMP NEW_INPUT, 4DH
+  JE BYE2
+  JMP WHAT_NEXT
+
+CHANGESTAT:
+  MOV STAT, 0
+  MOV FLAG, 03H
+  JMP CHANGE_STATE
 
 BYE2:
+
 
 _DETERMINE_MENU ENDP
 
@@ -1013,8 +1040,11 @@ _DETERMINE_MENU ENDP
 
 _NAVIGATION PROC NEAR ;This procedure figures out where in the menu is the user navigating to.
 
-LOOP_NAVIGATE:
+MOV STAT, 00H
+MOV STAT, 1
 
+LOOP_NAVIGATE:
+  
   CALL _GET_KEY
   CMP NEW_INPUT, 50H
   JE LOOP_NAVIGATE

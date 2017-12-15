@@ -10,18 +10,26 @@ DATASEG SEGMENT PARA 'Data'
   LOADING       DB 'loading.txt', 00H
   DONE_LOADING  DB 'doneload.txt', 00H
   HOW_TO        DB 'how.txt', 00H
-  MAZE_1        DB 'maze3.txt', 00H
+  MAZE_1        DB 'maze1.txt', 00H
+  MAZE_2        DB 'maze2.txt', 00H
   GAME_OVER     DB 'gameover.txt',00H
-  HIGHSCORE     DB 'hs.txt',00H
+  MAZE_3        DB 'maze3.txt',00H
   WINNER        DB 1
-  PLAYER_ONEW   DB "P L A Y E R  1  W I N S ! ! !",'$'
-  PLAYER_TWOW   DB "P L A Y E R  2  W I N S ! ! !",'$'
+  PLAYER_ONEW   DB "PLAYER 1 WINS!!!",'$'
+  PLAYER_TWOW   DB "PLAYER 2 WINS!!!",'$'
+  LEVEL_FLAG    DB 1
+  CONTINUE_MES  DB "Press Up Button to continue...", '$'
+  PLAYER1_TRACK DB "Player 1: ",'$'
+  PLAYER2_TRACK DB "Player 2: ",'$'
+  PLAYER1_OVERALL DB "TRIWIZARD CHAMPION IS PLAYER 1!!!",'$'
+  PLAYER2_OVERALL DB "TRIWIZARD CHAMPION IS PLAYER 2!!!",'$'
 
-  HARRY         DB 2BH,'$'
-  ENEMY         DB 7CH, '$'
 
   NEW_INPUT     DB ?
   FLAG          DW 01H,'$'
+
+  PLAYER1_SCORE DB 48, '$'
+  PLAYER2_SCORE DB 48, '$'
 
   STAT          DB 1
 
@@ -34,13 +42,10 @@ DATASEG SEGMENT PARA 'Data'
   RECORD_M          DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
   RECORD_H          DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
   RECORD_MAZE1      DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_MAZE2      DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
   RECORD_GAMEOVER   DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_HIGHSCORE  DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_MAZE_3  DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
 
-
-  ERROR1_STR    DB 'Error in opening file.$'
-  ERROR2_STR    DB 'Error reading from file.$'
-  ERROR3_STR    DB 'No record read from file.$'
   TEMP    DB    ?
   LOAD_STR  DB    'L O A D I N G$'
 
@@ -107,9 +112,9 @@ MAIN PROC FAR ;This is where the flow of the game lies from START to EXIT.
 MENU_START:
   MOV STAT, 1H
 
-  ;MOV   BH, 02H           
-  ;MOV   CX, 0000H         ; from top, leftmost
-  ;MOV   DX, 184FH         ; to bottom, rightmost
+  MOV   BH, 175           
+  MOV   CX, 0000H         ; from top, leftmost
+  MOV   DX, 184FH         ; to bottom, rightmost
   CALL  _CLEAR_SCREEN      ; clear screen
   MOV FLAG, 03H
   CALL _FILE_READ          ; call file read to show menu
@@ -130,6 +135,7 @@ EXIT_:
   MOV   AH, 4CH         ;force exit
   INT   21H
 
+MAIN ENDP
 ;-------------------------------------------------------------------------------------------
 _PLAY_NOW PROC NEAR ;this starts the game
 
@@ -961,29 +967,212 @@ _ERASE ENDP
   JNE PRINT_PLAYER2
 
   PRINT_PLAYER1:
-
-  MOV DH, 20 ;y
-  MOV DL, 26 ;x
+  INC PLAYER1_SCORE
+  MOV DH, 19 ;y
+  MOV DL, 33 ;x
   CALL _SET_CURSOR
   LEA DX, PLAYER_ONEW
   MOV AH, 9
   INT 21H
-  jmp dontprint
+  CMP LEVEL_FLAG, 1
+  JE SECOND_LEVEL
+  CMP LEVEL_FLAG, 3
+  JE DONTPRINT
+  JNE THIRD_LEVEL
 
   PRINT_PLAYER2:
-  MOV DH, 20 ;y
-  MOV DL, 26 ;x
+  INC PLAYER2_SCORE
+  MOV DH, 19 ;y
+  MOV DL, 33 ;x
   CALL _SET_CURSOR
   LEA DX, PLAYER_TWOW
   MOV AH, 9
   INT 21H
+  CMP LEVEL_FLAG, 1
+  JE SECOND_LEVEL
+  CMP LEVEL_FLAG, 3
+  JE DONTPRINT
+  JNE THIRD_LEVEL
+
+SECOND_LEVEL:
+  MOV LEVEL_FLAG, 2
+  CALL SECOND_LEVEL1
+
+THIRD_LEVEL:
+  MOV LEVEL_FLAG, 3
+  CALL THIRD_LEVEL1
 
   dontprint:
+
+  MOV DH, 15 ;y
+  MOV DL, 8 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER1_TRACK
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 16 ;y
+  MOV DL, 12 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER1_SCORE
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 15 ;y
+  MOV DL, 60 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER2_TRACK
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 16 ;y
+  MOV DL, 65 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER2_SCORE
+  MOV AH, 9
+  INT 21H
+
+  MOV AL, PLAYER1_SCORE
+  CMP PLAYER2_SCORE, AL
+  JA TWOWINS
+  JMP ONEWINS
+
+  ONEWINS:
+  MOV DH, 10 ;y
+  MOV DL, 22 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER1_OVERALL
+  MOV AH, 9
+  INT 21H
+
   CALL _TERMINATE
-  _PLAYER_WIN ENDP
+  TWOWINS:
+
+  MOV DH, 10 ;y
+  MOV DL, 22 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER2_OVERALL
+  MOV AH, 9
+  INT 21H
+  CALL _TERMINATE
+_PLAYER_WIN ENDP
+
+;-------------------------------------------------------------------------------------------
+THIRD_LEVEL1 PROC NEAR
+
+  MOV DH, 20 ;y
+  MOV DL, 25 ;x
+  CALL _SET_CURSOR
+  LEA DX, CONTINUE_MES
+  MOV AH, 9
+  INT 21H
+  MOV DH, 15 ;y
+  MOV DL, 8 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER1_TRACK
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 16 ;y
+  MOV DL, 12 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER1_SCORE
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 15 ;y
+  MOV DL, 60 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER2_TRACK
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 16 ;y
+  MOV DL, 65 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER2_SCORE
+  MOV AH, 9
+  INT 21H
+
+  MOV NEW_INPUT, 00H
+  LOOP_HERE_3: 
+  MOV DX, 0000H
+  CALL _SET_CURSOR
+  CALL _GET_KEY
+  CMP NEW_INPUT, 48H
+  JE CONTINUE_THIRD_LEVEL
+
+  JMP LOOP_HERE_3
+
+CONTINUE_THIRD_LEVEL:
+  MOV FLAG, 07H
+  MOV DX, 0000H
+  CALL _SET_CURSOR
+  CALL _CLEAR_SCREEN
+  CALL _FILE_READ
+  CALL _PLAY_NOW
+
+
+THIRD_LEVEL1 ENDP
+
 
 ;-------------------------------------------------------------------------------------------
 
+SECOND_LEVEL1 PROC NEAR
+  MOV DH, 20 ;y
+  MOV DL, 25 ;x
+  CALL _SET_CURSOR
+  LEA DX, CONTINUE_MES
+  MOV AH, 9
+  INT 21H
+  MOV DH, 15 ;y
+  MOV DL, 8 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER1_TRACK
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 16 ;y
+  MOV DL, 12 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER1_SCORE
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 15 ;y
+  MOV DL, 60 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER2_TRACK
+  MOV AH, 9
+  INT 21H
+
+  MOV DH, 16 ;y
+  MOV DL, 65 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER2_SCORE
+  MOV AH, 9
+  INT 21H
+
+  MOV NEW_INPUT, 00H
+  LOOP_HERE_2: 
+  MOV DX, 0000H
+  CALL _SET_CURSOR
+  CALL _GET_KEY
+  CMP NEW_INPUT, 48H
+  JE CONTINUE_SECOND_LEVEL
+
+  JMP LOOP_HERE_2
+
+CONTINUE_SECOND_LEVEL:
+  MOV FLAG, 08H
+  MOV DX, 0000H
+  CALL _SET_CURSOR
+  CALL _CLEAR_SCREEN
+  CALL _FILE_READ
+  CALL _PLAY_NOW
+
+SECOND_LEVEL1 ENDP
+;-------------------------------------------------------------------------------------------
 
 _DETERMINE_MENU PROC NEAR ;This procedure determines whether the state should be a game state, how to play state, or terminate.
 
@@ -1357,10 +1546,13 @@ _FILE_READ PROC NEAR
 
 ;This reads the different stages in our game: the loading state, done loading state, menu state, the mazes which are the game states, the highest score state,
 ;list of scores state and game over state.
-  MOV   BH, 07H           
+  MOV   BH, 2FH          
   MOV   CX, 0000H         ;from top, leftmost
   MOV   DX, 184FH         ;to bottom, rightmost
   CALL  _CLEAR_SCREEN     ;clear screen
+
+  MOV   DX, 0000
+  CALL  _SET_CURSOR
 
   MOV AH, 3DH
   MOV AL, 00  
@@ -1384,7 +1576,10 @@ _FILE_READ PROC NEAR
   JE DISPLAY_GAMEOVER
 
   CMP FLAG, 07H
-  JE DISPLAY_HIGHSCORE
+  JE DISPLAY_MAZE_3
+
+  CMP FLAG, 08H
+  JE DISPLAY_MAZESECOND
 
 DISPLAY_LOADING:
   LEA DX, LOADING
@@ -1409,8 +1604,13 @@ DISPLAY_MAZE:
 DISPLAY_GAMEOVER:
   LEA DX, GAME_OVER
   JMP CONTINUE_AF
-DISPLAY_HIGHSCORE:
-  LEA DX, HIGHSCORE
+
+DISPLAY_MAZE_3:
+  LEA DX, MAZE_3
+  JMP CONTINUE_AF
+
+DISPLAY_MAZESECOND:
+  LEA DX, MAZE_2
   JMP CONTINUE_AF
 
 CONTINUE_AF:
@@ -1438,8 +1638,13 @@ CONTINUE_AF:
 
   CMP FLAG, 06H
   JE RECORD_GAMEOVER1
+  
   CMP FLAG, 07H
   JE RECORD_HS
+
+  CMP FLAG, 08H
+  JE RECORD_MMAZE2
+
 RECORD_THISSTR:
 
   LEA DX, RECORD_STR    
@@ -1480,10 +1685,16 @@ RECORD_GAMEOVER1:
   LEA SI, RECORD_GAMEOVER
   JMP DONE_RECORD
 RECORD_HS:
-  LEA DX, RECORD_HIGHSCORE    
+  LEA DX, RECORD_MAZE_3    
   INT 21H
-  LEA SI, RECORD_HIGHSCORE
+  LEA SI, RECORD_MAZE_3
   JMP DONE_RECORD
+RECORD_MMAZE2:
+  LEA DX, RECORD_MAZE2
+  INT 21H
+  LEA SI, RECORD_MAZE2
+  JMP DONE_RECORD
+
 DONE_RECORD:
   CALL OUTPUT_EXT
   MOV AH, 3EH           
@@ -1512,13 +1723,13 @@ _DELAY ENDP
 ;-------------------------------------------------------------------------------------------
 _TERMINATE PROC NEAR
       ;set cursor
-      MOV   DL, 22H
-      MOV   DH, 11
+      MOV   DL, 00H
+      MOV   DH, 00
       CALL  _SET_CURSOR
 
       ;set cursor
       MOV   DL, 00
-      MOV   DH, 13
+      MOV   DH, 00
       CALL  _SET_CURSOR
 
       MOV   AX, 4C00H

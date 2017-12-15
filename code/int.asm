@@ -1,16 +1,21 @@
 TITLE CAPSTONE (EXE)
 ;-------------------------------------------------------------------------------------------
 STACKSEG SEGMENT PARA 'Stack'
-  DW 32 DUP ('E')
 STACKSEG ENDS
 ;-------------------------------------------------------------------------------------------
 DATASEG SEGMENT PARA 'Data'
+
   MESSAGE DB ?
   MENUFILE      DB 'menu.txt', 00H
   LOADING       DB 'loading.txt', 00H
   DONE_LOADING  DB 'doneload.txt', 00H
   HOW_TO        DB 'how.txt', 00H
-  MAZE_1        DB 'maze1.txt', 00H
+  MAZE_1        DB 'maze3.txt', 00H
+  GAME_OVER     DB 'gameover.txt',00H
+  HIGHSCORE     DB 'hs.txt',00H
+  WINNER        DB 1
+  PLAYER_ONEW   DB "P L A Y E R  1  W I N S ! ! !",'$'
+  PLAYER_TWOW   DB "P L A Y E R  2  W I N S ! ! !",'$'
 
   HARRY         DB 2BH,'$'
   ENEMY         DB 7CH, '$'
@@ -19,20 +24,19 @@ DATASEG SEGMENT PARA 'Data'
   FLAG          DW 01H,'$'
 
   STAT          DB 1
-  HARRY_X       DB 77
-  HARRY_Y       DB 03
-  ENEMY_X       DB 77
-  ENEMY_Y       DB 23
 
   FILEHANDLE    DW ?
   HERE          DB ">>$"
   BLANK         DB "  $"
 
-  RECORD_STR    DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_LOAD   DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_M      DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_H      DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
-  RECORD_MAZE1  DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_STR        DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_LOAD       DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_M          DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_H          DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_MAZE1      DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_GAMEOVER   DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+  RECORD_HIGHSCORE  DB 7500 DUP('$')  ;length = original length of record + 1 (for $)
+
 
   ERROR1_STR    DB 'Error in opening file.$'
   ERROR2_STR    DB 'Error reading from file.$'
@@ -41,15 +45,15 @@ DATASEG SEGMENT PARA 'Data'
   LOAD_STR  DB    'L O A D I N G$'
 
 
-  MOV_X         DB 13H
-  MOV_Y         DB 42H
+  MOV_X         DB 23
+  MOV_Y         DB 75
   NEW_ACTION    DB ?, '$'
 
   TEMP_X        DB ?, '$'
   TEMP_Y        DB ?, '$'
 
-  MOV_X2        DB 03H
-  MOV_Y2        DB 46H
+  MOV_X2        DB 23
+  MOV_Y2        DB 74
 
   MOV_STATUS    DB ?, '$'
   X             DB ?, '$'
@@ -80,10 +84,10 @@ MAIN PROC FAR ;This is where the flow of the game lies from START to EXIT.
 
 
   ;SETUP
-  MOV   BH, 07H           
-  MOV   CX, 0000H         ;from top, leftmost
-  MOV   DX, 184FH         ;to bottom, rightmost
-  CALL  _CLEAR_SCREEN     ;clear screen
+  ;MOV   BH, 07H           
+  ;MOV   CX, 0000H         ;from top, leftmost
+  ;MOV   DX, 184FH         ;to bottom, rightmost
+  ;CALL  _CLEAR_SCREEN     ;clear screen
 
   CALL _FILE_READ         ;setup loading screen
   MOV FLAG, 01H
@@ -91,7 +95,7 @@ MAIN PROC FAR ;This is where the flow of the game lies from START to EXIT.
   MOV FLAG, 02H
   CALL _FILE_READ         ;done loading
 
-  LOOP_FOR_ENTER:
+  LOOP_FOR_ENTER: ; ;wait for up to go next
 
     CALL _GET_KEY
     CMP NEW_INPUT, 13 ;
@@ -103,20 +107,18 @@ MAIN PROC FAR ;This is where the flow of the game lies from START to EXIT.
 MENU_START:
   MOV STAT, 1H
 
-  MOV   BH, 07H           
-  MOV   CX, 0000H         ;from top, leftmost
-  MOV   DX, 184FH         ;to bottom, rightmost
-  CALL  _CLEAR_SCREEN     ;clear screen
+  ;MOV   BH, 02H           
+  ;MOV   CX, 0000H         ; from top, leftmost
+  ;MOV   DX, 184FH         ; to bottom, rightmost
+  CALL  _CLEAR_SCREEN      ; clear screen
   MOV FLAG, 03H
-  CALL _FILE_READ
-  MOV NEW_INPUT, 04BH
-  CALL _NAVIGATION
-  CALL _DETERMINE_MENU
+  CALL _FILE_READ          ; call file read to show menu
+  MOV NEW_INPUT, 04BH      ; get whether the player clicked up
+  CALL _NAVIGATION         ; navigate through menu
+  CALL _DETERMINE_MENU     ; when up is clicked, menu will go to the navigation page
 
   CMP STAT, 1
   JE START_GAME
-  CMP STAT, 0
-  JE MENU_START
   CMP STAT, 3
   JE EXIT_
   JMP EXIT_
@@ -129,7 +131,7 @@ EXIT_:
   INT   21H
 
 ;-------------------------------------------------------------------------------------------
-_PLAY_NOW PROC NEAR
+_PLAY_NOW PROC NEAR ;this starts the game
 
 __ITERATE:
   CALL _CLEAR_SCREEN
@@ -522,42 +524,42 @@ UPDATE_PLAYER PROC NEAR
 
   CALL _DELAY
 
-  CMP_DOWN:
+  CMP_DOWN: ;PLAYER 1
     CMP NEW_ACTION, 0073H
     JE HELPER_DOWN  
     JNE CMP_UP
 
-  CMP_UP:
+  CMP_UP: ;PLAYER 1
     CMP NEW_ACTION, 0077H
     JE HELPER_UP
     JNE CMP_LEFT
 
-  CMP_LEFT:
+  CMP_LEFT: ;PLAYER 1
     CMP NEW_ACTION, 0061H
     JE HELPER_LEFT
     JNE CMP_RIGHT
 
-  CMP_RIGHT:
+  CMP_RIGHT: ;PLAYER 1
     CMP NEW_ACTION, 0064H
     JE HELPER_RIGHT
     JNE CMP_DOWN2
 
-  CMP_DOWN2:
+  CMP_DOWN2: ;PLAYER 2
     CMP NEW_ACTION, 50H
     JE HELPER_DOWN2
     JNE CMP_UP2
 
-  CMP_UP2:
+  CMP_UP2: ;PLAYER 2
     CMP NEW_ACTION, 48H
     JE HELPER_UP2
     JNE CMP_LEFT2
 
-  CMP_LEFT2:
+  CMP_LEFT2: ;PLAYER 2
     CMP NEW_ACTION, 4BH
     JE HELPER_LEFT2
     JNE CMP_RIGHT2
 
-  CMP_RIGHT2:
+  CMP_RIGHT2: ;PLAYER 2
     CMP NEW_ACTION, 4DH
     JE HELPER_RIGHT2
     RET
@@ -581,6 +583,7 @@ HELPER_RIGHT2:
     JMP RIGHT2         
 ;-------------------------------------------
 UP:
+    MOV WINNER, 1
     MOV PLAYER_POST1, 00H
     MOV DL, MOV_Y
     MOV DH, MOV_X
@@ -601,6 +604,7 @@ UP:
       RET
 ;-------------------------------------------
 DOWN:
+    MOV WINNER, 1
     MOV PLAYER_POST1, 01H
     MOV DL, MOV_Y
     MOV DH, MOV_X
@@ -621,6 +625,7 @@ DOWN:
       RET
 ;-------------------------------------------
 RIGHT:
+    MOV WINNER, 1
     MOV PLAYER_POST1, 02H
     MOV DL, MOV_Y
     MOV DH, MOV_X
@@ -641,6 +646,7 @@ RIGHT:
       RET
 ;-------------------------------------------
 LEFT:
+    MOV WINNER, 1
     MOV PLAYER_POST1, 03H
     MOV DL, MOV_Y
     MOV DH, MOV_X
@@ -661,6 +667,7 @@ LEFT:
       RET
 ;-------------------------------------------
 UP2:
+    MOV WINNER, 2
     MOV PLAYER_POST2, 00H
     MOV DL, MOV_Y2
     MOV DH, MOV_X2
@@ -681,6 +688,7 @@ UP2:
       RET
 ;-------------------------------------------
 DOWN2:
+    MOV WINNER, 2
     MOV PLAYER_POST2, 01H
     MOV DL, MOV_Y2
     MOV DH, MOV_X2
@@ -701,6 +709,7 @@ DOWN2:
       RET
 ;-------------------------------------------
 RIGHT2:
+    MOV WINNER, 2
     MOV PLAYER_POST2, 02H
     MOV DL, MOV_Y2
     MOV DH, MOV_X2
@@ -721,6 +730,7 @@ RIGHT2:
       RET
 ;-------------------------------------------
 LEFT2:
+    MOV WINNER, 2 
     MOV PLAYER_POST2, 03H
     MOV DL, MOV_Y2
     MOV DH, MOV_X2
@@ -775,8 +785,8 @@ LEFT_MOVE PROC NEAR
       JNE DEC_LEFT
 
     WIN_LEFT:
-      MOV FLAG, 06H
-      CALL _FILE_READ
+      CALL _PLAYER_WIN
+      
       CALL _TERMINATE
 
     DEC_LEFT:
@@ -824,8 +834,7 @@ RIGHT_MOVE PROC NEAR
       JNE DEC_RIGHT
 
     WIN_RIGHT:
-      MOV FLAG, 06H
-      CALL _FILE_READ
+      CALL _PLAYER_WIN
       CALL _TERMINATE
     DEC_RIGHT:
       MOV AH, 01H
@@ -870,8 +879,9 @@ DOWN_MOVE PROC NEAR
       JNE DEC_DOWN
 
     WIN_DOWN:
-      MOV FLAG, 06H
-      CALL _FILE_READ
+
+      CALL _PLAYER_WIN
+      
       CALL _TERMINATE
 
     DEC_DOWN:
@@ -917,8 +927,7 @@ UP_MOVE PROC NEAR
       JNE DEC_UP
 
     WIN_UP:
-      MOV FLAG, 06H
-      CALL _FILE_READ
+      CALL _PLAYER_WIN
       CALL _TERMINATE
 
     DEC_UP:
@@ -939,53 +948,42 @@ RET
 _ERASE ENDP
 
 ;-------------------------------------------------------------------------------------------
+  _PLAYER_WIN PROC NEAR
 
-_DO_THIS PROC NEAR
+  MOV FLAG, 06H
+  ;MOV BH, 07H           ; light gray on black
+  CALL _CLEAR_SCREEN
 
-;harry
-  CMP NEW_INPUT, 4BH
-  JE HARRY_MOVE_LEFT
+  CALL _FILE_READ
 
-  CMP NEW_INPUT, 4DH
-  JE HARRY_MOVE_RIGHT
+  CMP WINNER, 1
+  JE PRINT_PLAYER1
+  JNE PRINT_PLAYER2
 
-  CMP NEW_INPUT, 48H
-  JE HARRY_MOVE_UP
+  PRINT_PLAYER1:
 
-  CMP NEW_INPUT, 50H
-  JE HARRY_MOVE_DOWN
+  MOV DH, 20 ;y
+  MOV DL, 26 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER_ONEW
+  MOV AH, 9
+  INT 21H
+  jmp dontprint
 
-;enemy
-  CMP NEW_INPUT, 41H
-  JE ENEMY_MOVE_LEFT
+  PRINT_PLAYER2:
+  MOV DH, 20 ;y
+  MOV DL, 26 ;x
+  CALL _SET_CURSOR
+  LEA DX, PLAYER_TWOW
+  MOV AH, 9
+  INT 21H
 
-  CMP NEW_INPUT, 44H
-  JE ENEMY_MOVE_RIGHT
+  dontprint:
+  CALL _TERMINATE
+  _PLAYER_WIN ENDP
 
-  CMP NEW_INPUT, 57H
-  JE ENEMY_MOVE_UP
-
-  CMP NEW_INPUT, 53H
-  JE ENEMY_MOVE_DOWN
-
-HARRY_MOVE_LEFT:
-
-HARRY_MOVE_RIGHT:
-
-HARRY_MOVE_UP:
-
-HARRY_MOVE_DOWN:
-
-ENEMY_MOVE_LEFT:
-
-ENEMY_MOVE_RIGHT:
-
-ENEMY_MOVE_UP:
-
-ENEMY_MOVE_DOWN:
-
-_DO_THIS ENDP
 ;-------------------------------------------------------------------------------------------
+
 
 _DETERMINE_MENU PROC NEAR ;This procedure determines whether the state should be a game state, how to play state, or terminate.
 
@@ -1010,13 +1008,16 @@ PLAY_PLAY:
   JMP CHANGE_STATE
 
 CHANGE_STATE:
+  ;MOV BH, 27H
+  ;MOV   CX, 0000H         ;from top, leftmost
+  ;MOV   DX, 184FH         ;to bottom, rightmost
   CALL _CLEAR_SCREEN
   CALL _FILE_READ
   MOV NEW_INPUT, 00H
 
   CMP STAT, 2
   JE WHAT_NEXT
-  JMP BYE2
+  JMP BYE3
 
 WHAT_NEXT:
   CALL _GET_KEY
@@ -1027,13 +1028,17 @@ WHAT_NEXT:
   JMP WHAT_NEXT
 
 CHANGESTAT:
-  MOV STAT, 0
   MOV FLAG, 03H
-  JMP CHANGE_STATE
+  CALL _CLEAR_SCREEN
+  CALL _FILE_READ
+  MOV FLAG, 00H
+  CALL _NAVIGATION         ; navigate through menu
+  JMP DETERMINE_THIS
 
+  JMP BYE3
 BYE2:
-
-
+  CALL _TERMINATE
+BYE3:
 _DETERMINE_MENU ENDP
 
 ;-------------------------------------------------------------------------------------------
@@ -1164,6 +1169,7 @@ EXIT_2:
   JMP LOOP_NAVIGATE
 
 BYEEE:
+;goodbye
 
 _NAVIGATION ENDP
 
@@ -1351,7 +1357,10 @@ _FILE_READ PROC NEAR
 
 ;This reads the different stages in our game: the loading state, done loading state, menu state, the mazes which are the game states, the highest score state,
 ;list of scores state and game over state.
-
+  MOV   BH, 07H           
+  MOV   CX, 0000H         ;from top, leftmost
+  MOV   DX, 184FH         ;to bottom, rightmost
+  CALL  _CLEAR_SCREEN     ;clear screen
 
   MOV AH, 3DH
   MOV AL, 00  
@@ -1370,6 +1379,12 @@ _FILE_READ PROC NEAR
 
   CMP FLAG, 05H
   JE DISPLAY_MAZE
+
+  CMP FLAG, 06H
+  JE DISPLAY_GAMEOVER
+
+  CMP FLAG, 07H
+  JE DISPLAY_HIGHSCORE
 
 DISPLAY_LOADING:
   LEA DX, LOADING
@@ -1391,6 +1406,13 @@ DISPLAY_MAZE:
   LEA DX, MAZE_1
   JMP CONTINUE_AF
 
+DISPLAY_GAMEOVER:
+  LEA DX, GAME_OVER
+  JMP CONTINUE_AF
+DISPLAY_HIGHSCORE:
+  LEA DX, HIGHSCORE
+  JMP CONTINUE_AF
+
 CONTINUE_AF:
   INT 21H
   MOV FILEHANDLE, AX
@@ -1410,15 +1432,19 @@ CONTINUE_AF:
   
   CMP FLAG, 04H
   JE RECORD_HOW
+
   CMP FLAG, 05H
   JE RECORD_MAZEONE
 
+  CMP FLAG, 06H
+  JE RECORD_GAMEOVER1
+  CMP FLAG, 07H
+  JE RECORD_HS
 RECORD_THISSTR:
 
   LEA DX, RECORD_STR    
   INT 21H
   LEA SI, RECORD_STR
-
   JMP DONE_RECORD
 
 RECORD_DONELOAD:
@@ -1426,7 +1452,6 @@ RECORD_DONELOAD:
   LEA DX, RECORD_LOAD    
   INT 21H
   LEA SI, RECORD_LOAD
-
   JMP DONE_RECORD
 
 RECORD_MENU:
@@ -1434,7 +1459,6 @@ RECORD_MENU:
   LEA DX, RECORD_M    
   INT 21H
   LEA SI, RECORD_M
-
   JMP DONE_RECORD
 
 RECORD_HOW:
@@ -1442,16 +1466,24 @@ RECORD_HOW:
   LEA DX, RECORD_H    
   INT 21H
   LEA SI, RECORD_H
-
   JMP DONE_RECORD
 
 RECORD_MAZEONE:
   LEA DX, RECORD_MAZE1    
   INT 21H
   LEA SI, RECORD_MAZE1
-
   JMP DONE_RECORD
 
+RECORD_GAMEOVER1:
+  LEA DX, RECORD_GAMEOVER    
+  INT 21H
+  LEA SI, RECORD_GAMEOVER
+  JMP DONE_RECORD
+RECORD_HS:
+  LEA DX, RECORD_HIGHSCORE    
+  INT 21H
+  LEA SI, RECORD_HIGHSCORE
+  JMP DONE_RECORD
 DONE_RECORD:
   CALL OUTPUT_EXT
   MOV AH, 3EH           

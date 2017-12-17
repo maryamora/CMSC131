@@ -50,15 +50,15 @@ DATASEG SEGMENT PARA 'Data'
   LOAD_STR  DB    'L O A D I N G$'
 
 
-  MOV_X         DB 23
-  MOV_Y         DB 75
+  MOV_X         DB 23 ;x coordinate of player1
+  MOV_Y         DB 75 ;y coordinate of player2
   NEW_ACTION    DB ?, '$'
 
-  TEMP_X        DB ?, '$'
-  TEMP_Y        DB ?, '$'
+  TEMP_X        DB ?, '$' ;temporary x
+  TEMP_Y        DB ?, '$' ;temporary y
 
-  MOV_X2        DB 23
-  MOV_Y2        DB 74
+  MOV_X2        DB 23 ;x coordinate of player1
+  MOV_Y2        DB 74 ;y coordinate of player2
 
   MOV_STATUS    DB ?, '$'
   X             DB ?, '$'
@@ -71,8 +71,8 @@ DATASEG SEGMENT PARA 'Data'
   SPELL_STATUS2 DB 00H
   SY            DB ?
   SX            DB ?
-  PLAYER_POST1  DB 03H
-  PLAYER_POST2  DB 03H
+  PLAYER_POST1  DB 03H ;to know the current position player 1 (left, right, up, down)
+  PLAYER_POST2  DB 03H ;to know the current position player 2 (left, right, up, down)
 
 DATASEG ENDS
 ;-------------------------------------------------------------------------------------------
@@ -432,12 +432,13 @@ CONTINUING:
   RET
 CAST_SPELL_P2 ENDP
 ;-------------------------------------------------------------------------------------------
+;This procedure analysis the given key input and moves the player accordingly
 UPDATE_PLAYER PROC NEAR
   ;MOV NEW_ACTION, 00H
   ;CALL _GET_KEY
 
   CALL _DELAY
-
+;moving conditions for player1
   CMP_DOWN: ;PLAYER 1
     CMP NEW_ACTION, 0073H
     JE HELPER_DOWN  
@@ -457,7 +458,7 @@ UPDATE_PLAYER PROC NEAR
     CMP NEW_ACTION, 0064H
     JE HELPER_RIGHT
     JNE CMP_DOWN2
-
+;moving conditions for player2
   CMP_DOWN2: ;PLAYER 2
     CMP NEW_ACTION, 50H
     JE HELPER_DOWN2
@@ -665,6 +666,7 @@ LEFT2:
       RET
 UPDATE_PLAYER ENDP
 ;-------------------------------------------------------------------------------------------
+;This procedure allows the left movement of the players
 LEFT_MOVE PROC NEAR
     MOV Y, DL
     MOV X, DH
@@ -715,6 +717,7 @@ LEFT_MOVE PROC NEAR
   RET
 LEFT_MOVE ENDP
 ;-------------------------------------------------------------------------------------------
+;This procedure allows the right movement of the players
 RIGHT_MOVE PROC NEAR
     MOV Y, DL
     MOV X, DH
@@ -763,6 +766,7 @@ RIGHT_MOVE PROC NEAR
 RET
 RIGHT_MOVE ENDP
 ;-------------------------------------------------------------------------------------------
+;This procedure allows the down movement of the players
 DOWN_MOVE PROC NEAR
     MOV Y, DL
     MOV X, DH
@@ -811,6 +815,7 @@ DOWN_MOVE PROC NEAR
 RET
 DOWN_MOVE ENDP
 ;-------------------------------------------------------------------------------------------
+;This procedure allows the up movement of the players
 UP_MOVE PROC NEAR
     MOV Y, DL
     MOV X, DH
@@ -859,6 +864,7 @@ UP_MOVE PROC NEAR
 RET
 UP_MOVE ENDP
 ;-------------------------------------------------------------------------------------------
+;this erase the char on the poition of the previous move
 _ERASE PROC NEAR
   MOV DL, 32
   MOV AH, 02H
@@ -867,6 +873,8 @@ RET
 _ERASE ENDP
 
 ;-------------------------------------------------------------------------------------------
+;this set the next postion of the players after the first level, 
+;this also notify which player win the first level
   _PLAYER_WIN PROC NEAR
   MOV MOV_X, 16
   MOV MOV_Y, 78
@@ -975,6 +983,7 @@ THIRD_LEVEL:
 _PLAYER_WIN ENDP
 
 ;-------------------------------------------------------------------------------------------
+;sets the position of the player in the next level, notify the winner and call the next maze
 THIRD_LEVEL1 PROC NEAR
   MOV MOV_X, 14
   MOV MOV_Y, 60
@@ -1036,7 +1045,7 @@ CONTINUE_THIRD_LEVEL:
 
 THIRD_LEVEL1 ENDP
 ;-------------------------------------------------------------------------------------------
-
+;sets the position of the player in the next level, notify the winner and call the next maze
 SECOND_LEVEL1 PROC NEAR
   MOV DH, 20 ;y
   MOV DL, 25 ;x
@@ -1299,7 +1308,7 @@ _SET_CURSOR PROC  NEAR ;This sets the cursor at the end of the screen or whereve
 _SET_CURSOR ENDP
 
 ;-------------------------------------------------------------------------------------------
-
+;this procedure allows the printing of the ascii characters that are out of scope in 8086
 OUTPUT_EXT PROC NEAR
 
 PRINT:
@@ -1640,6 +1649,7 @@ _DELAY PROC NEAR
       RET
 _DELAY ENDP
 ;-------------------------------------------------------------------------------------------
+;ends the program
 _TERMINATE PROC NEAR
       ;set cursor
       MOV   DL, 00H
@@ -1655,6 +1665,7 @@ _TERMINATE PROC NEAR
       INT   21H
 _TERMINATE ENDP
 ;-------------------------------------------------------------------------------------------
+;get the character at the cursor location
 _GET_CHAR_AT_CURSOR PROC  NEAR  
       MOV   AH, 08H
       MOV   BH, 00
@@ -1662,7 +1673,7 @@ _GET_CHAR_AT_CURSOR PROC  NEAR
       RET
 _GET_CHAR_AT_CURSOR ENDP
 ;-------------------------------------------------------------------------------------------
-
+;this get the user input
 _GET_KEY_  PROC  NEAR
       MOV   AH, 01H   ;check for input
       INT   16H
